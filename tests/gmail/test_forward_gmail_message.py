@@ -424,6 +424,12 @@ async def test_forward_attachment_download_failure_raises():
             user_google_email="me@example.com",
         )
 
+    # Abort before send: no actual send (one carrying a message body) is attempted.
+    # (The harness invokes .send() once with no args while wiring the mock, so we
+    # assert on the body-bearing call rather than using assert_not_called.)
+    send_mock = mock_service.users().messages().send
+    assert not any("body" in call.kwargs for call in send_mock.call_args_list)
+
 
 @pytest.mark.asyncio
 async def test_forward_with_cc_bcc():
