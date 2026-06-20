@@ -26,7 +26,10 @@ class OAuthConfig:
     def __init__(self):
         # Base server configuration
         self.base_uri = os.getenv("WORKSPACE_MCP_BASE_URI", "http://localhost")
-        self.port = int(os.getenv("PORT", os.getenv("WORKSPACE_MCP_PORT", "8000")))
+        if os.getenv("WORKSPACE_MCP_RESOLVED_PORT") == "1":
+            self.port = int(os.getenv("WORKSPACE_MCP_PORT", os.getenv("PORT", "8000")))
+        else:
+            self.port = int(os.getenv("PORT", os.getenv("WORKSPACE_MCP_PORT", "8000")))
         self.base_url = f"{self.base_uri}:{self.port}"
 
         # External URL for reverse proxy scenarios
@@ -35,6 +38,13 @@ class OAuthConfig:
         # OAuth client configuration
         self.client_id = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
         self.client_secret = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+
+        # Branding for the OAuth consent page. FastMCP's OAuth proxy renders the
+        # server's name / icon / website on the consent screen; these env vars feed
+        # those server fields. All optional — unset leaves the upstream defaults.
+        self.brand_name = os.getenv("WORKSPACE_MCP_BRAND_NAME")
+        self.brand_icon_url = os.getenv("WORKSPACE_MCP_BRAND_ICON_URL")
+        self.brand_website_url = os.getenv("WORKSPACE_MCP_BRAND_WEBSITE_URL")
 
         # OAuth 2.1 configuration
         self.oauth21_enabled = (
@@ -81,6 +91,14 @@ class OAuthConfig:
                 "Set GOOGLE_SERVICE_ACCOUNT_KEY_FILE or GOOGLE_SERVICE_ACCOUNT_KEY_JSON, "
                 "but not MCP_ENABLE_OAUTH21=true."
             )
+
+        # Optional per-request impersonation domain allowlist for service accounts.
+        _raw_domains = os.getenv("DWD_ALLOWED_DOMAINS", "")
+        self.dwd_allowed_domains: List[str] = (
+            [d.strip().lower() for d in _raw_domains.split(",") if d.strip()]
+            if self.service_account_enabled and _raw_domains
+            else []
+        )
         # Transport mode (will be set at runtime)
         self._transport_mode = "stdio"  # Default
 
