@@ -74,7 +74,8 @@ def _describe_elements(
     Non-shape elements surface the identifying metadata a caller needs to act on
     them in a follow-up batch_update: a linked ``sheetsChart`` exposes its source
     ``spreadsheetId``/``chartId`` (so the source data can be edited and the chart
-    refreshed via ``refreshSheetsChart``), and images/videos expose their source.
+    refreshed via ``refreshSheetsChart``), and images/videos expose their source
+    or rendered content URL when available.
     """
     info: List[str] = []
     for element in elements or []:
@@ -114,8 +115,17 @@ def _describe_elements(
             )
         elif "image" in element:
             image = element["image"]
-            source = image.get("sourceUrl") or image.get("contentUrl") or "Unknown"
-            info.append(f"{indent}Image: ID {element_id}, Source: {source}")
+            source = image.get("sourceUrl")
+            if source:
+                info.append(f"{indent}Image: ID {element_id}, Source: {source}")
+            else:
+                content_url = image.get("contentUrl")
+                if content_url:
+                    info.append(
+                        f"{indent}Image: ID {element_id}, ContentURL: {content_url}"
+                    )
+                else:
+                    info.append(f"{indent}Image: ID {element_id}, Source: Unknown")
         elif "video" in element:
             video = element["video"]
             info.append(

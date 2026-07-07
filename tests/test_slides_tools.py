@@ -409,14 +409,16 @@ def test_describe_elements_surfaces_sheets_chart_with_missing_fields():
 def test_describe_elements_labels_image_video_and_wordart():
     elements = [
         {"objectId": "i1", "image": {"sourceUrl": "https://example.com/img.png"}},
-        {"objectId": "i2", "image": {}},
+        {"objectId": "i2", "image": {"contentUrl": "https://example.com/rendered.png"}},
+        {"objectId": "i3", "image": {}},
         {"objectId": "v1", "video": {"source": "YOUTUBE", "id": "abc123"}},
         {"objectId": "w1", "wordArt": {"renderedText": "Hello"}},
         {"objectId": "w2", "wordArt": {}},
     ]
     assert _describe_elements(elements) == [
         "  Image: ID i1, Source: https://example.com/img.png",
-        "  Image: ID i2, Source: Unknown",
+        "  Image: ID i2, ContentURL: https://example.com/rendered.png",
+        "  Image: ID i3, Source: Unknown",
         "  Video: ID v1, Source: YOUTUBE, VideoID: abc123",
         '  WordArt: ID w1, Text: "Hello"',
         "  WordArt: ID w2",
