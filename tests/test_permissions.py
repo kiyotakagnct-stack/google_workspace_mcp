@@ -7,6 +7,7 @@ service/level) and cumulative scope expansion in get_scopes_for_permission().
 
 import sys
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -20,6 +21,8 @@ from auth.permissions import (
     SERVICE_PERMISSION_LEVELS,
 )
 from auth.scopes import (
+    CALENDAR_EVENTS_SCOPE,
+    CALENDAR_READONLY_SCOPE,
     GMAIL_READONLY_SCOPE,
     GMAIL_LABELS_SCOPE,
     GMAIL_MODIFY_SCOPE,
@@ -30,6 +33,7 @@ from auth.scopes import (
     TASKS_SCOPE,
     DRIVE_FILE_SCOPE,
 )
+from core import tool_registry
 
 
 class TestParsePermissionsArg:
@@ -185,6 +189,13 @@ class TestIsActionDenied:
         set_permissions({"tasks": "manage"})
         assert is_action_denied("tasks", "clear_completed") is True
 
+    def test_tasks_manage_allows_non_destructive_write_actions(self):
+        """Manage level should allow create, update, and move."""
+        set_permissions({"tasks": "manage"})
+        assert is_action_denied("tasks", "create") is False
+        assert is_action_denied("tasks", "update") is False
+        assert is_action_denied("tasks", "move") is False
+
     def test_tasks_full_allows_clear_completed(self):
         """Full level should not deny clear_completed."""
         set_permissions({"tasks": "full"})
@@ -199,3 +210,65 @@ class TestIsActionDenied:
         """A service with no SERVICE_DENIED_ACTIONS entry should allow all actions."""
         set_permissions({"gmail": "readonly"})
         assert is_action_denied("gmail", "delete") is False
+
+
+class TestPermissionToolFiltering:
+    """Tests for tool removal under granular permissions mode."""
+
+    @staticmethod
+    def _tool_with_scopes(required_scopes):
+        def fn():
+            pass
+
+        fn._required_google_scopes = required_scopes
+        return SimpleNamespace(fn=fn)
+
+    def test_calendar_tasks_readonly_permissions_filter_write_tools(
+        self, monkeypatch
+    ):
+        set_permissions({"calendar": "readonly", "tasks": "readonly"})
+        tool_registry.set_enabled_tools(None)
+
+        components = {
+            "list_calendars": self._tool_with_scopes([CALENDAR_READONLY_SCOPE]),
+            "manage_event": self._tool_with_scopes([CALENDAR_EVENTS_SCOPE]),
+            "list_tasks": self._tool_with_scopes([TASKS_READONLY_SCOPE]),
+            "manage_task": self._tool_with_scopes([TASKS_SCOPE]),
+        }
+        removed = []
+        fake_server = SimpleNamespace(
+            local_provider=SimpleNamespace(remove_tool=lambda name: removed.append(name))
+        )
+
+        monkeypatch.setattr(
+            tool_registry, "get_tool_components", lambda server: components
+        )
+        monkeypatch.setattr(tool_registry, "is_oauth21_enabled", lambda: False)
+
+        tool_registry.filter_server_tools(fake_server)
+
+        assert set(removed) == {"manage_event", "manage_task"}
+
+    def test_calendar_full_tasks_manage_permissions_keep_write_tools(
+        self, monkeypatch
+    ):
+        set_permissions({"calendar": "full", "tasks": "manage"})
+        tool_registry.set_enabled_tools(None)
+
+        components = {
+            "manage_event": self._tool_with_scopes([CALENDAR_EVENTS_SCOPE]),
+            "manage_task": self._tool_with_scopes([TASKS_SCOPE]),
+        }
+        removed = []
+        fake_server = SimpleNamespace(
+            local_provider=SimpleNamespace(remove_tool=lambda name: removed.append(name))
+        )
+
+        monkeypatch.setattr(
+            tool_registry, "get_tool_components", lambda server: components
+        )
+        monkeypatch.setattr(tool_registry, "is_oauth21_enabled", lambda: False)
+
+        tool_registry.filter_server_tools(fake_server)
+
+        assert removed == []

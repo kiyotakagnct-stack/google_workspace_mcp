@@ -132,13 +132,13 @@ slides:
 
 tasks:
   core:
+    - list_task_lists
+    - get_task_list
     - get_task
     - list_tasks
     - manage_task
   extended: []
   complete:
-    - list_task_lists
-    - get_task_list
     - manage_task_list
 
 contacts:

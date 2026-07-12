@@ -12,6 +12,7 @@ os.environ["MCP_ENABLE_OAUTH21"] = "false"
 os.environ["WORKSPACE_MCP_STATELESS_MODE"] = "false"
 
 import main
+from core.tool_tier_loader import resolve_tools_from_tier
 
 
 def test_resolve_permissions_mode_selection_without_tier():
@@ -36,6 +37,23 @@ def test_resolve_permissions_mode_selection_with_tier_filters_services(monkeypat
     )
     assert resolved_services == ["gmail"]
     assert tier_tool_filter == {"search_gmail_messages"}
+
+
+def test_tasks_core_tier_includes_task_list_read_tools():
+    tier_tools, tier_services = resolve_tools_from_tier("core", ["tasks"])
+
+    assert "tasks" in tier_services
+    assert "list_task_lists" in tier_tools
+    assert "get_task_list" in tier_tools
+    assert "list_tasks" in tier_tools
+    assert "get_task" in tier_tools
+    assert "manage_task" in tier_tools
+
+
+def test_tasks_core_tier_excludes_task_list_management_tool():
+    tier_tools, _ = resolve_tools_from_tier("core", ["tasks"])
+
+    assert "manage_task_list" not in tier_tools
 
 
 def test_narrow_permissions_to_services_keeps_selected_order():
